@@ -238,7 +238,7 @@ async function load() {
   // Multi-tenant: the company name is per-founder, not baked into the page.
   ROUND_TARGET = parseRaise(COMPANY.profile && COMPANY.profile.raising) || DEFAULT_ROUND_TARGET;
   const co = (d.company && d.company.name) || "";
-  if (co) document.title = co + " · Fundraise CRM";
+  if (co) document.title = co + " · GoCrave Fundraise";
   if (!CRM.deals) CRM.deals = {};
   if (!CRM.log) CRM.log = [];
   if (!CRM.trash) CRM.trash = [];
