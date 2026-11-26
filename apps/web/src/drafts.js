@@ -60,7 +60,8 @@ Stage: ${profile.stage || "n/a"}
 Problem: ${profile.problem || "n/a"}
 Solution: ${profile.solution || "n/a"}
 Business model: ${profile.business_model || "n/a"}
-Traction: ${(profile.traction || []).join("; ") || "n/a"}`;
+Traction: ${(profile.traction || []).join("; ") || "n/a"}
+Team: ${profile.team || "n/a"}`;
 
   const investorContext = `Investor firm: ${firm || "(unknown)"}
 Partner / person: ${partner || "(the relevant partner)"}
