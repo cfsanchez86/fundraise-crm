@@ -68,6 +68,7 @@ import {
   saveInvestors,
   saveProfile,
   saveSettings,
+  setPassword,
   touchLastSeen,
   updateCompany,
   usageToday,
@@ -224,6 +225,23 @@ export default {
           headers: { location: to.toString(), "cache-control": NO_STORE, "set-cookie": sessionCookie("", 0) },
         });
       }
+      // Any signed-in user can change their own password, and must prove the
+      // current one first, so a session left open on a shared screen can't be
+      // turned into a permanent takeover.
+      if (p === "/api/password" && method === "POST") {
+        const b = await readJson(request);
+        const current = await hashPassword(me.salt, String(b.current || ""));
+        if (!timingSafeEqual(current, me.pw_hash))
+          return json({ error: "Your current password is wrong." }, 400);
+        const next = String(b.next || "");
+        if (next.length < 12) return json({ error: "Password must be at least 12 characters." }, 400);
+        if (next === String(b.current || ""))
+          return json({ error: "Pick a password you haven't used here." }, 400);
+        const salt = hex(crypto.getRandomValues(new Uint8Array(16)));
+        await setPassword(env, me.username, salt, await hashPassword(salt, next));
+        return json({ ok: true });
+      }
+
       const companyId = me.company_id;
       if (!companyId) return json({ error: "This account is not attached to a company." }, 403);
 
@@ -239,6 +257,7 @@ export default {
         }
       }
       if (p === "/onboarding" || p === "/onboarding.html") return asset(env, request, "/onboarding.html");
+      if (p === "/password" || p === "/password.html") return asset(env, request, "/password.html");
 
       if (p === "/api/me" && method === "GET") {
         const co = await getCompany(env, companyId);

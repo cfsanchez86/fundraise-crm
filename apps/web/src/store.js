@@ -38,6 +38,13 @@ export function findUser(env, username) {
     .first();
 }
 
+// A new salt with every change, so the old hash says nothing about the new password.
+export function setPassword(env, username, salt, pwHash) {
+  return env.DB.prepare("UPDATE users SET salt = ?1, pw_hash = ?2 WHERE username = ?3")
+    .bind(salt, pwHash, username)
+    .run();
+}
+
 export function touchLastSeen(env, username) {
   return env.DB.prepare("UPDATE users SET last_seen = ?1 WHERE username = ?2")
     .bind(Date.now(), username)

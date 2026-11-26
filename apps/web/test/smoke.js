@@ -16,7 +16,7 @@ import fs from "node:fs";
 import path from "node:path";
 import os from "node:os";
 import { execFileSync } from "node:child_process";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { makeDB } from "./d1.js";
 
 // node:sqlite landed in Node 22. On 18 or 20 the import fails with a module
@@ -30,7 +30,7 @@ if (major < 22) {
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.join(HERE, "..");
-const worker = (await import(path.join(ROOT, "src/index.js"))).default;
+const worker = (await import(pathToFileURL(path.join(ROOT, "src/index.js")).href)).default;
 
 let pass = 0;
 const failures = [];
@@ -155,6 +155,41 @@ async function main() {
   const me = await (await call(env, ctx, "/api/me", { cookie: a.cookie })).json();
   check("signup does NOT grant admin", me.role === "founder", `role was ${me.role}`);
 
+  section("Changing a password");
+  const pat = await signup(env, ctx, { username: "pat", password: "first-password-123", company: "Patco" });
+  const changePw = (body, cookie = pat.cookie) =>
+    call(env, ctx, "/api/password", {
+      method: "POST",
+      cookie,
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(body),
+    });
+  const login = (password) =>
+    call(env, ctx, "/api/login", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ username: "pat", password }),
+    });
+  check(
+    "changing a password needs a session",
+    (await changePw({ current: "x", next: "y" }, "")).status === 401,
+  );
+  check(
+    "the current password must be right",
+    (await changePw({ current: "wrong-password-000", next: "second-password-456" })).status === 400,
+  );
+  check(
+    "a new password under 12 characters is refused",
+    (await changePw({ current: "first-password-123", next: "short" })).status === 400,
+  );
+  check(
+    "a password change succeeds",
+    (await changePw({ current: "first-password-123", next: "second-password-456" })).status === 200,
+  );
+  check("the old password no longer signs in", (await login("first-password-123")).status === 401);
+  check("the new password signs in", (await login("second-password-456")).status === 200);
+  check("the password page needs a session", (await call(env, ctx, "/password")).status === 302);
+
   // ------------------------------------------------------------ tenant walls
   section("Tenant isolation");
   const b = await signup(env, ctx, {
@@ -231,7 +266,7 @@ async function main() {
     "loaded rows arrive unscored",
     seededRows.every((v) => v.scored === false && v.fit_score === 50),
   );
-  const { provenance } = await import(path.join(ROOT, "src/investors.js"));
+  const { provenance } = await import(pathToFileURL(path.join(ROOT, "src/investors.js")).href);
   check(
     "both halves of the bundled list are stored as seed rows",
     provenance({ tier: "seed" }) === "seed" && provenance({ tier: "fund-list" }) === "seed",
